@@ -2199,7 +2199,7 @@
                                 <span id="cloudSyncStatus" role="status" aria-live="polite" class="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg font-bold">جارٍ التهيئة...</span>
                             </div>
                             <p class="text-[11px] text-slate-600 leading-relaxed">
-                                سجّل الدخول بحساب Firebase لحفظ بيانات البرنامج في Cloud Firestore. فعّل Email/Password في Firebase Authentication وانشر ملف firestore.rules. تبقى نسخة الجهاز المحلية فعالة عند انقطاع الإنترنت.
+                                يلزم تفعيل Email/Password من Firebase Authentication، وإنشاء قاعدة Cloud Firestore ونشر قواعد ملف firestore.rules. الأفضل فتح البرنامج عبر localhost أو استضافته بدلاً من فتحه كملف مباشر. تبقى نسخة الجهاز المحلية فعالة عند انقطاع الإنترنت.
                             </p>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
@@ -2217,6 +2217,7 @@
                                 <button type="button" onclick="syncCloudNow()" class="py-2 px-3 rounded-lg bg-cyan-100 hover:bg-cyan-200 text-cyan-950 border border-cyan-300 text-xs font-bold">مزامنة الآن</button>
                                 <button type="button" onclick="signOutFromCloud()" class="py-2 px-3 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold">تسجيل الخروج</button>
                             </div>
+                            <p id="cloudErrorMessage" role="alert" aria-live="assertive" class="hidden text-[11px] leading-relaxed text-rose-800 bg-rose-50 border border-rose-200 rounded-lg p-2"></p>
                         </div>
 
                         <div class="space-y-2.5 pt-1 text-xs">
@@ -4141,6 +4142,34 @@
     let cloudPendingSignature = null;
     let cloudLastError = '';
 
+    function formatFirebaseError(error) {
+        const code = error?.code || '';
+        const messages = {
+            'auth/operation-not-allowed': 'تسجيل البريد وكلمة المرور غير مفعّل. من Firebase Console افتح Authentication > Sign-in method وفعّل Email/Password.',
+            'auth/configuration-not-found': 'مصادقة Firebase غير مهيأة لهذا المشروع. فعّل Firebase Authentication وطريقة Email/Password.',
+            'auth/invalid-api-key': 'مفتاح Firebase غير صالح؛ راجع إعدادات تطبيق الويب في Firebase Console.',
+            'auth/api-key-not-valid': 'مفتاح Firebase غير صالح أو مقيّد؛ راجع قيود API key في Google Cloud Console.',
+            'auth/project-not-found': 'لم يتم العثور على مشروع Firebase المحدد في إعدادات البرنامج.',
+            'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+            'auth/missing-password': 'أدخل كلمة المرور.',
+            'auth/weak-password': 'كلمة المرور ضعيفة؛ استخدم 6 أحرف على الأقل.',
+            'auth/email-already-in-use': 'هذا البريد مسجل مسبقاً. استخدم «تسجيل الدخول» أو بريداً آخر.',
+            'auth/invalid-credential': 'البريد أو كلمة المرور غير صحيحة، أو أن الحساب غير موجود.',
+            'auth/user-not-found': 'لم يتم العثور على حساب بهذا البريد. أنشئ حساباً أولاً أو تحقق من البريد.',
+            'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+            'auth/too-many-requests': 'تم إيقاف المحاولات مؤقتاً لكثرتها؛ انتظر قليلاً ثم أعد المحاولة.',
+            'auth/network-request-failed': 'تعذر الاتصال بخدمات Firebase. تحقق من الإنترنت أو افتح البرنامج عبر localhost بدلاً من file://.',
+            'auth/unauthorized-domain': 'هذا النطاق غير مسموح في Firebase Authentication. أضف نطاق الموقع في Authentication > Settings > Authorized domains، وافتح الملف عبر localhost أو استضافة ويب.',
+            'auth/invalid-origin': 'مصدر الصفحة غير مسموح للمصادقة. افتح البرنامج عبر localhost أو استضافة ويب، ثم أضف النطاق إلى Authorized domains.',
+            'permission-denied': 'رفضت قواعد Firestore الوصول. انشر ملف firestore.rules وتأكد من تسجيل الدخول بالحساب نفسه.',
+            'unavailable': 'خدمة Firestore غير متاحة حالياً. تحقق من الإنترنت وحالة Firebase.',
+            'failed-precondition': 'قاعدة Cloud Firestore غير جاهزة. أنشئ قاعدة بيانات Firestore من Firebase Console.',
+            'resource-exhausted': 'تم تجاوز حصة Firebase المتاحة حالياً.'
+        };
+        const detail = messages[code] || error?.message || 'خطأ غير معروف.';
+        return code ? `${detail} (رمز الخطأ: ${code})` : detail;
+    }
+
     function setCloudStatus(message, state = 'idle') {
         const status = document.getElementById('cloudSyncStatus');
         if (!status) return;
@@ -4279,10 +4308,24 @@
     }
 
     function reportCloudError(context, error) {
-        cloudLastError = error?.message || String(error);
+        cloudLastError = formatFirebaseError(error);
         console.error(context, error);
+        const errorMessage = document.getElementById('cloudErrorMessage');
+        if (errorMessage) {
+            errorMessage.textContent = `${context}: ${cloudLastError}`;
+            errorMessage.classList.remove('hidden');
+        }
         updateCloudAccountStatus();
         showToast(`${context}: ${cloudLastError}`, 'error');
+    }
+
+    function clearCloudError() {
+        cloudLastError = '';
+        const errorMessage = document.getElementById('cloudErrorMessage');
+        if (errorMessage) {
+            errorMessage.textContent = '';
+            errorMessage.classList.add('hidden');
+        }
     }
 
     function scheduleCloudSave(jsonStr) {
@@ -4308,7 +4351,7 @@
                 await writeCloudData(uid, snapshot);
                 if (!cloudUser || cloudUser.uid !== uid) return;
                 cloudLastSavedSignature = signature;
-                cloudLastError = '';
+                clearCloudError();
                 localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, uid);
                 setCloudStatus('تمت المزامنة السحابية', 'success');
             }).catch(error => {
@@ -4356,7 +4399,7 @@
                     }
                 });
             });
-            cloudLastError = '';
+            clearCloudError();
             updateCloudAccountStatus();
         } catch (error) {
             reportCloudError('تعذر تهيئة Firebase. تحقق من الاتصال وإعدادات المشروع', error);
@@ -4381,7 +4424,7 @@
         const credentials = getCloudAuthInput();
         if (!credentials) return;
         try {
-            cloudLastError = '';
+            clearCloudError();
             await firebaseAuthFunctions.signInWithEmailAndPassword(firebaseAuth, credentials.email, credentials.password);
             await cloudAuthChangePromise;
             document.getElementById('cloudPassword').value = '';
@@ -4398,7 +4441,7 @@
         const credentials = getCloudAuthInput();
         if (!credentials) return;
         try {
-            cloudLastError = '';
+            clearCloudError();
             await firebaseAuthFunctions.createUserWithEmailAndPassword(firebaseAuth, credentials.email, credentials.password);
             await cloudAuthChangePromise;
             document.getElementById('cloudPassword').value = '';
@@ -4439,7 +4482,7 @@
             await writeCloudData(cloudUser.uid, jsonStr);
             cloudLastSavedSignature = cloudDataSignature(jsonStr);
             cloudPendingSignature = null;
-            cloudLastError = '';
+            clearCloudError();
             localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, cloudUser.uid);
             setCloudStatus('تمت المزامنة السحابية', 'success');
             showToast('تمت مزامنة بيانات البرنامج مع Firebase بنجاح', 'success');
@@ -11350,8 +11393,8 @@ function startHeaderClock() {
 
             html += `</table>
 
-</body>
-</html>`;
+<\/body>
+<\/html>`;
 
             const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
             downloadJsonFile(blob, `تقرير_المحاسب_الشامل_${business}_${dateStr}.xls`);
@@ -12599,6 +12642,7 @@ function showWelcomeSplashPreview() {
     if (modal) {
         modal.classList.remove('hidden');
         modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
     }
 }
 
@@ -12636,6 +12680,7 @@ function checkWelcomeSplashState() {
     if (modal) {
         modal.classList.remove('hidden');
         modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
     }
 }
 
@@ -12677,7 +12722,8 @@ function closeWelcomeSplash() {
     const modal = document.getElementById('appWelcomeSplashModal');
     if (modal) {
         modal.style.opacity = '0';
-        setTimeout(() => { modal.classList.add('hidden'); }, 250);
+        modal.style.pointerEvents = 'none';
+        modal.classList.add('hidden');
     }
 }
 
@@ -13746,6 +13792,7 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        printWindow.onload = () => printWindow.print();
         printWindow.document.write(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -13779,12 +13826,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 ${tableHtml}
-                <script>
-                    window.onload = function() { window.print(); };
-                <\/script>
-            
-</body>
-            </html>
+<\/body>
+            <\/html>
         `);
         printWindow.document.close();
     }
@@ -14226,6 +14269,7 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        printWindow.onload = () => printWindow.print();
         printWindow.document.write(`
             <!DOCTYPE html>
             <html lang="ar" dir="rtl">
@@ -14258,12 +14302,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 ${tableHtml}
-                <script>
-                    window.onload = function() { window.print(); };
-                <\/script>
-            
-</body>
-            </html>
+<\/body>
+            <\/html>
         `);
         printWindow.document.close();
     }
