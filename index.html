@@ -406,11 +406,6 @@
     ::-webkit-scrollbar-thumb:hover { background: #10b981; }
 </style>
 
-
-    <!-- Firebase SDK (Universal Compat version for seamless offline & cloud support) -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
 </head>
 <body class="h-full overflow-hidden select-none bg-[#f0fdf4] text-black font-sans flex flex-col">
 
@@ -539,10 +534,6 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <div id="headerCloudBadge" onclick="manualTriggerCloudSync()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border border-emerald-300 text-[11px] font-bold text-emerald-900 shadow-2xs hover:bg-emerald-50 cursor-pointer transition-all" title="حالة الاتصال بقاعدة بيانات Firebase السحابية - اضغط للمزامنة الفورية">
-                <i id="cloudHeaderIcon" class="ph ph-cloud-check text-emerald-600 text-sm"></i>
-                <span id="cloudHeaderText">جاري الاتصال بالسحابة...</span>
-            </div>
             <div class="flex items-center gap-2 text-xs text-black font-bold">
                 <span id="headerStatusDot" class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
                 <span id="headerDate">--</span>
@@ -2158,40 +2149,7 @@
                     </div>
 
                     <!-- العمود الأيسر: منظومة النسخ الاحتياطي الآمن ونقاط الاستعادة المتطورة ومزامنة الجوال -->
-                    <!-- كرت إدارة المزامنة السحابية Firebase Cloud Firestore -->
-                        <div class="desktop-card p-4 space-y-3 theme-border-emerald bg-white">
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg border border-emerald-300">
-                                        <i class="ph ph-cloud-check"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-sm font-bold text-black">قاعدة بيانات Firebase السحابية المباشرة</h3>
-                                        <p class="text-[11px] text-slate-600">المشروع: <span class="font-mono text-emerald-800 font-bold">my-gemini-site-2026</span> • مزامنة لحظية متعددة الأجهزة</p>
-                                    </div>
-                                </div>
-                                <span id="settingsCloudStatusBadge" class="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
-                                    <i class="ph ph-circle text-xs text-emerald-600"></i> جاري الفحص...
-                                </span>
-                            </div>
-
-                            <p class="text-xs text-slate-600 leading-relaxed">
-                                يتم حفظ الفواتير والمخزون والزبائن تلقائياً في السحابة فور أي تعديل، وتصل التحديثات لحظياً لكل جهاز أو هاتف مفتوح به البرنامج بدون حاجة لتحديث الصفحة.
-                            </p>
-
-                            <div class="grid grid-cols-2 gap-2.5 pt-1 text-xs">
-                                <button type="button" onclick="manualForcePushToCloud()" class="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all">
-                                    <i class="ph ph-cloud-arrow-up text-base"></i>
-                                    <span>رفع البيانات الحالية للسحابة</span>
-                                </button>
-                                <button type="button" onclick="manualForcePullFromCloud()" class="py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 text-emerald-900 border-2 border-emerald-400 font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all">
-                                    <i class="ph ph-cloud-arrow-down text-base"></i>
-                                    <span>جلب أحدث نسخة من السحابة</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="desktop-card p-4 space-y-3 theme-border-emerald bg-white">
+                    <div class="desktop-card p-4 space-y-3 theme-border-emerald bg-white">
                         <div class="flex items-center justify-between border-b border-slate-100 pb-2">
                             <div class="flex items-center gap-2">
                                 <i class="ph ph-shield-check text-emerald-600 text-2xl"></i>
@@ -2229,6 +2187,35 @@
                                     <span>2. استيراد ودمج حركات الجوال</span>
                                 </button>
                                 <input type="file" id="mobileBatchFileInput" accept=".json,.txt" class="hidden" onchange="importMobileBatch(event)">
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-gradient-to-r from-sky-50 to-cyan-50 border-2 border-sky-300 rounded-2xl mb-3 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-sky-950 flex items-center gap-1.5 text-xs">
+                                    <i class="ph ph-cloud-arrow-up text-lg text-sky-700"></i>
+                                    <span>النسخ الاحتياطي السحابي (Firebase)</span>
+                                </span>
+                                <span id="cloudSyncStatus" role="status" aria-live="polite" class="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-lg font-bold">جارٍ التهيئة...</span>
+                            </div>
+                            <p class="text-[11px] text-slate-600 leading-relaxed">
+                                سجّل الدخول بحساب Firebase لحفظ بيانات البرنامج في Cloud Firestore. فعّل Email/Password في Firebase Authentication وانشر ملف firestore.rules. تبقى نسخة الجهاز المحلية فعالة عند انقطاع الإنترنت.
+                            </p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="cloudEmail" class="block text-[11px] text-slate-700 mb-1">البريد الإلكتروني</label>
+                                    <input type="email" id="cloudEmail" autocomplete="username" class="w-full h-9 text-xs bg-white border border-sky-200 rounded-lg px-2.5 text-black focus:outline-none focus:border-sky-500">
+                                </div>
+                                <div>
+                                    <label for="cloudPassword" class="block text-[11px] text-slate-700 mb-1">كلمة مرور Firebase</label>
+                                    <input type="password" id="cloudPassword" autocomplete="current-password" class="w-full h-9 text-xs bg-white border border-sky-200 rounded-lg px-2.5 text-black focus:outline-none focus:border-sky-500">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" onclick="signInToCloud()" class="py-2 px-3 rounded-lg bg-sky-100 hover:bg-sky-200 text-sky-950 border border-sky-300 text-xs font-bold">تسجيل الدخول</button>
+                                <button type="button" onclick="createCloudAccount()" class="py-2 px-3 rounded-lg bg-white hover:bg-sky-50 text-sky-900 border border-sky-300 text-xs font-bold">إنشاء حساب</button>
+                                <button type="button" onclick="syncCloudNow()" class="py-2 px-3 rounded-lg bg-cyan-100 hover:bg-cyan-200 text-cyan-950 border border-cyan-300 text-xs font-bold">مزامنة الآن</button>
+                                <button type="button" onclick="signOutFromCloud()" class="py-2 px-3 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold">تسجيل الخروج</button>
                             </div>
                         </div>
 
@@ -4129,6 +4116,369 @@
     const IDB_NAME = 'ABU_HAZEM_COMMERCIAL_IDB';
     const IDB_STORE = 'commercial_store_data';
     let idbDatabase = null;
+    const CLOUD_OWNER_STORAGE_KEY = 'ABU_HAZEM_COMMERCIAL_CLOUD_OWNER_V1';
+    const CLOUD_CHUNK_BYTES = 700 * 1024;
+    const FIREBASE_CONFIG = {
+        apiKey: 'AIzaSyA6kt-gmzaP48O9UrMgftscepK9tIzpG9Q',
+        authDomain: 'my-gemini-site-2026.firebaseapp.com',
+        projectId: 'my-gemini-site-2026',
+        storageBucket: 'my-gemini-site-2026.firebasestorage.app',
+        messagingSenderId: '481544142251',
+        appId: '1:481544142251:web:5d53ec7cd5a4d17b4b26ee'
+    };
+    let firebaseAuth = null;
+    let firestoreDb = null;
+    let firebaseAuthFunctions = null;
+    let firestoreFunctions = null;
+    let cloudUser = null;
+    let cloudHydrationComplete = false;
+    let cloudStartupComplete = false;
+    let cloudInitialAuthResolved = false;
+    let cloudAuthChangePromise = Promise.resolve();
+    let cloudSaveTimer = null;
+    let cloudWriteChain = Promise.resolve();
+    let cloudLastSavedSignature = null;
+    let cloudPendingSignature = null;
+    let cloudLastError = '';
+
+    function setCloudStatus(message, state = 'idle') {
+        const status = document.getElementById('cloudSyncStatus');
+        if (!status) return;
+        const styles = {
+            idle: 'bg-slate-100 text-slate-700',
+            working: 'bg-amber-100 text-amber-900',
+            success: 'bg-emerald-100 text-emerald-900',
+            error: 'bg-rose-100 text-rose-900'
+        };
+        status.className = `text-[10px] ${styles[state] || styles.idle} px-2 py-0.5 rounded-lg font-bold`;
+        status.textContent = message;
+    }
+
+    function updateCloudAccountStatus() {
+        if (!firebaseAuth) {
+            setCloudStatus(cloudLastError ? 'تعذر الاتصال بخدمات Firebase' : 'Firebase غير مهيأ', cloudLastError ? 'error' : 'idle');
+            return;
+        }
+        if (!cloudUser) {
+            setCloudStatus('غير متصل — البيانات محلية', 'idle');
+            return;
+        }
+        if (cloudLastError) {
+            setCloudStatus('خطأ في المزامنة', 'error');
+            return;
+        }
+        setCloudStatus(cloudHydrationComplete ? `متصل: ${cloudUser.email || 'حساب Firebase'}` : 'تم الدخول — المزامنة معلّقة', cloudHydrationComplete ? 'success' : 'working');
+    }
+
+    function cloudDataSignature(jsonStr) {
+        const data = JSON.parse(jsonStr);
+        delete data._lastUpdated;
+        return JSON.stringify(data);
+    }
+
+    function hasMeaningfulCloudData(data) {
+        if (!data) return false;
+        const recordCount = (data.products?.length || 0) +
+            (data.parties || []).filter(party => party.id !== 'cust_walkin' && party.id !== 'supp_walkin').length +
+            (data.invoices?.length || 0) + (data.expenses?.length || 0) +
+            (data.deposits?.length || 0) + (data.damaged?.length || 0) +
+            (data.salaries?.length || 0) + (data.stockAdjustments?.length || 0);
+        return recordCount > 0 ||
+            data.businessName !== defaultData.businessName ||
+            (data.paymentMethods && JSON.stringify(data.paymentMethods) !== JSON.stringify(defaultData.paymentMethods)) ||
+            Boolean(data.security?.isLockEnabled);
+    }
+
+    function splitCloudPayload(jsonStr) {
+        const encoder = new TextEncoder();
+        const chunks = [];
+        let chunk = '';
+        let chunkBytes = 0;
+        for (const character of jsonStr) {
+            const characterBytes = encoder.encode(character).length;
+            if (chunk && chunkBytes + characterBytes > CLOUD_CHUNK_BYTES) {
+                chunks.push(chunk);
+                chunk = '';
+                chunkBytes = 0;
+            }
+            chunk += character;
+            chunkBytes += characterBytes;
+        }
+        if (chunk || chunks.length === 0) chunks.push(chunk);
+        return chunks;
+    }
+
+    async function readCloudData(uid) {
+        const manifestRef = firestoreFunctions.doc(firestoreDb, 'users', uid, 'appData', 'main');
+        const manifestSnapshot = await firestoreFunctions.getDoc(manifestRef);
+        if (!manifestSnapshot.exists()) return null;
+
+        const manifest = manifestSnapshot.data();
+        if (typeof manifest.generation !== 'string' || !Number.isInteger(manifest.chunkCount) || manifest.chunkCount < 1) {
+            throw new Error('بيانات فهرس النسخة السحابية غير صالحة.');
+        }
+
+        const chunkRefs = Array.from({ length: manifest.chunkCount }, (_, index) =>
+            firestoreFunctions.doc(firestoreDb, 'users', uid, 'appDataChunks', `${manifest.generation}_${index}`)
+        );
+        const chunkSnapshots = await Promise.all(chunkRefs.map(reference => firestoreFunctions.getDoc(reference)));
+        const chunks = chunkSnapshots.map((snapshot, index) => {
+            if (!snapshot.exists() || typeof snapshot.data().payload !== 'string') {
+                throw new Error(`الجزء ${index + 1} من النسخة السحابية غير موجود أو غير صالح.`);
+            }
+            return snapshot.data().payload;
+        });
+        const data = JSON.parse(chunks.join(''));
+        if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('محتوى النسخة السحابية ليس كائناً صالحاً.');
+        }
+        data._lastUpdated = Math.max(data._lastUpdated || 0, manifest.lastUpdated || 0);
+        return data;
+    }
+
+    async function writeCloudData(uid, jsonStr) {
+        const chunks = splitCloudPayload(jsonStr);
+        const generation = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        const manifestRef = firestoreFunctions.doc(firestoreDb, 'users', uid, 'appData', 'main');
+        const previousManifestSnapshot = await firestoreFunctions.getDoc(manifestRef);
+        const previousManifest = previousManifestSnapshot.exists() ? previousManifestSnapshot.data() : null;
+
+        for (let start = 0; start < chunks.length; start += 450) {
+            const batch = firestoreFunctions.writeBatch(firestoreDb);
+            chunks.slice(start, start + 450).forEach((payload, offset) => {
+                const index = start + offset;
+                const chunkRef = firestoreFunctions.doc(firestoreDb, 'users', uid, 'appDataChunks', `${generation}_${index}`);
+                batch.set(chunkRef, { generation, index, payload });
+            });
+            await batch.commit();
+        }
+
+        await firestoreFunctions.setDoc(manifestRef, {
+            generation,
+            chunkCount: chunks.length,
+            lastUpdated: Date.now()
+        });
+
+        if (previousManifest && typeof previousManifest.generation === 'string' &&
+            Number.isInteger(previousManifest.chunkCount) && previousManifest.chunkCount > 0) {
+            try {
+                for (let start = 0; start < previousManifest.chunkCount; start += 450) {
+                    const batch = firestoreFunctions.writeBatch(firestoreDb);
+                    const end = Math.min(start + 450, previousManifest.chunkCount);
+                    for (let index = start; index < end; index++) {
+                        const oldChunkRef = firestoreFunctions.doc(firestoreDb, 'users', uid, 'appDataChunks', `${previousManifest.generation}_${index}`);
+                        batch.delete(oldChunkRef);
+                    }
+                    await batch.commit();
+                }
+            } catch (error) {
+                console.error('تعذر حذف أجزاء نسخة Firebase السابقة:', error);
+                setCloudStatus('تم الحفظ؛ تعذر تنظيف نسخة سحابية قديمة', 'error');
+            }
+        }
+    }
+
+    function reportCloudError(context, error) {
+        cloudLastError = error?.message || String(error);
+        console.error(context, error);
+        updateCloudAccountStatus();
+        showToast(`${context}: ${cloudLastError}`, 'error');
+    }
+
+    function scheduleCloudSave(jsonStr) {
+        if (!cloudUser || !cloudHydrationComplete || !firestoreDb || isResettingData) return;
+        let signature;
+        try {
+            signature = cloudDataSignature(jsonStr);
+        } catch (error) {
+            reportCloudError('تعذر تجهيز بيانات المزامنة السحابية', error);
+            return;
+        }
+        if (signature === cloudLastSavedSignature || signature === cloudPendingSignature) return;
+
+        cloudPendingSignature = signature;
+        clearTimeout(cloudSaveTimer);
+        cloudSaveTimer = setTimeout(() => {
+            const uid = cloudUser?.uid;
+            if (!uid || !cloudHydrationComplete) return;
+            const snapshot = jsonStr;
+            cloudWriteChain = cloudWriteChain.then(async () => {
+                if (!cloudUser || cloudUser.uid !== uid) return;
+                setCloudStatus('جارٍ حفظ البيانات...', 'working');
+                await writeCloudData(uid, snapshot);
+                if (!cloudUser || cloudUser.uid !== uid) return;
+                cloudLastSavedSignature = signature;
+                cloudLastError = '';
+                localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, uid);
+                setCloudStatus('تمت المزامنة السحابية', 'success');
+            }).catch(error => {
+                reportCloudError('فشل حفظ البيانات في Cloud Firestore', error);
+            }).finally(() => {
+                if (cloudPendingSignature === signature) cloudPendingSignature = null;
+            });
+        }, 1200);
+    }
+
+    async function initializeFirebaseCloud() {
+        try {
+            const [appSdk, authSdk, firestoreSdk] = await Promise.all([
+                import('https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/13.2.0/firebase-auth.js'),
+                import('https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js')
+            ]);
+            const app = appSdk.getApps().find(existingApp => existingApp.name === '[DEFAULT]') || appSdk.initializeApp(FIREBASE_CONFIG);
+            firebaseAuth = authSdk.getAuth(app);
+            firestoreDb = firestoreSdk.getFirestore(app);
+            firebaseAuthFunctions = authSdk;
+            firestoreFunctions = firestoreSdk;
+
+            await new Promise(resolveInitialAuth => {
+                authSdk.onAuthStateChanged(firebaseAuth, user => {
+                    const previousUid = cloudUser?.uid || null;
+                    cloudUser = user;
+                    updateCloudAccountStatus();
+                    if (!cloudInitialAuthResolved) {
+                        cloudInitialAuthResolved = true;
+                        resolveInitialAuth();
+                        return;
+                    }
+                    if (cloudStartupComplete && previousUid !== (user?.uid || null)) {
+                        cloudAuthChangePromise = handleCloudAuthStateChange(user).catch(error => {
+                            cloudHydrationComplete = false;
+                            reportCloudError('تعذر تحميل بيانات حساب Firebase', error);
+                        });
+                    }
+                }, error => {
+                    reportCloudError('تعذر التحقق من حساب Firebase', error);
+                    if (!cloudInitialAuthResolved) {
+                        cloudInitialAuthResolved = true;
+                        resolveInitialAuth();
+                    }
+                });
+            });
+            cloudLastError = '';
+            updateCloudAccountStatus();
+        } catch (error) {
+            reportCloudError('تعذر تهيئة Firebase. تحقق من الاتصال وإعدادات المشروع', error);
+        }
+    }
+
+    function getCloudAuthInput() {
+        const email = document.getElementById('cloudEmail')?.value.trim();
+        const password = document.getElementById('cloudPassword')?.value;
+        if (!email || !password) {
+            showToast('أدخل البريد الإلكتروني وكلمة المرور لحساب Firebase', 'error');
+            return null;
+        }
+        return { email, password };
+    }
+
+    async function signInToCloud() {
+        if (!firebaseAuthFunctions || !firebaseAuth) {
+            showToast('خدمات Firebase غير جاهزة؛ تحقق من اتصال الإنترنت وإعدادات المشروع', 'error');
+            return;
+        }
+        const credentials = getCloudAuthInput();
+        if (!credentials) return;
+        try {
+            cloudLastError = '';
+            await firebaseAuthFunctions.signInWithEmailAndPassword(firebaseAuth, credentials.email, credentials.password);
+            await cloudAuthChangePromise;
+            document.getElementById('cloudPassword').value = '';
+        } catch (error) {
+            reportCloudError('تعذر تسجيل الدخول إلى Firebase', error);
+        }
+    }
+
+    async function createCloudAccount() {
+        if (!firebaseAuthFunctions || !firebaseAuth) {
+            showToast('خدمات Firebase غير جاهزة؛ تحقق من اتصال الإنترنت وإعدادات المشروع', 'error');
+            return;
+        }
+        const credentials = getCloudAuthInput();
+        if (!credentials) return;
+        try {
+            cloudLastError = '';
+            await firebaseAuthFunctions.createUserWithEmailAndPassword(firebaseAuth, credentials.email, credentials.password);
+            await cloudAuthChangePromise;
+            document.getElementById('cloudPassword').value = '';
+        } catch (error) {
+            reportCloudError('تعذر إنشاء حساب Firebase', error);
+        }
+    }
+
+    async function signOutFromCloud() {
+        if (!firebaseAuthFunctions || !firebaseAuth) return;
+        try {
+            await firebaseAuthFunctions.signOut(firebaseAuth);
+            cloudHydrationComplete = false;
+            cloudLastSavedSignature = null;
+            updateCloudAccountStatus();
+            showToast('تم تسجيل الخروج؛ سيستمر الحفظ على هذا الجهاز', 'success');
+        } catch (error) {
+            reportCloudError('تعذر تسجيل الخروج من Firebase', error);
+        }
+    }
+
+    async function syncCloudNow() {
+        if (!cloudUser) {
+            showToast('سجّل الدخول إلى حساب Firebase أولاً', 'error');
+            return;
+        }
+        try {
+            await cloudWriteChain;
+            clearTimeout(cloudSaveTimer);
+            cloudPendingSignature = null;
+            const remoteData = await readCloudData(cloudUser.uid);
+            if (remoteData && !confirm('سيتم استبدال النسخة السحابية ببيانات هذا الجهاز. هل تريد المتابعة؟')) return;
+            if (!remoteData && hasMeaningfulCloudData(appData) &&
+                !confirm('لا توجد نسخة سحابية لهذا الحساب. هل تريد رفع بيانات هذا الجهاز لأول مرة؟')) return;
+
+            cloudHydrationComplete = true;
+            const jsonStr = JSON.stringify(appData);
+            await writeCloudData(cloudUser.uid, jsonStr);
+            cloudLastSavedSignature = cloudDataSignature(jsonStr);
+            cloudPendingSignature = null;
+            cloudLastError = '';
+            localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, cloudUser.uid);
+            setCloudStatus('تمت المزامنة السحابية', 'success');
+            showToast('تمت مزامنة بيانات البرنامج مع Firebase بنجاح', 'success');
+        } catch (error) {
+            reportCloudError('تعذرت المزامنة مع Cloud Firestore', error);
+        }
+    }
+
+    async function handleCloudAuthStateChange(user) {
+        cloudHydrationComplete = false;
+        cloudLastSavedSignature = null;
+        cloudPendingSignature = null;
+        clearTimeout(cloudSaveTimer);
+        cloudLastError = '';
+        if (!user) {
+            updateCloudAccountStatus();
+            return;
+        }
+        await loadData();
+        if (cloudHydrationComplete) {
+            refreshCloudDataViews();
+            updateCloudAccountStatus();
+            showToast('تم تحميل بيانات حساب Firebase', 'success');
+        }
+    }
+
+    function refreshCloudDataViews() {
+        updateBusinessNameUI();
+        updateHeaderBackupState();
+        updateImportedBackupFileNameUI();
+        renderPaymentMethodsDropdown();
+        populateExpenseAndCustWallets();
+        renderInventoryList();
+        renderPartiesList();
+        renderHistoryDashboardBadges();
+        updateReportData();
+        renderPaymentMethodsSettings();
+        syncSecuritySettingsUI();
+    }
 
     function openCommercialIDB() {
         return new Promise((resolve) => {
@@ -4195,6 +4545,18 @@
 
     async function loadData() {
         try {
+            let cloudParsed = null;
+            let cloudReadSucceeded = !cloudUser;
+            if (cloudUser) {
+                try {
+                    cloudParsed = await readCloudData(cloudUser.uid);
+                    cloudReadSucceeded = true;
+                } catch (error) {
+                    cloudHydrationComplete = false;
+                    reportCloudError('تعذر قراءة النسخة السحابية؛ لم يتم استبدال بيانات الجهاز', error);
+                }
+            }
+
             let localParsed = null;
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
@@ -4218,6 +4580,32 @@
 
             candidates.sort((a, b) => scoreData(b) - scoreData(a));
             let parsed = candidates.length > 0 ? candidates[0] : null;
+            let cloudMigrationApproved = false;
+
+            if (cloudUser && cloudReadSucceeded) {
+                const cloudOwnerUid = localStorage.getItem(CLOUD_OWNER_STORAGE_KEY);
+                if (cloudParsed) {
+                    if (cloudOwnerUid !== cloudUser.uid ||
+                        !parsed || (cloudParsed._lastUpdated || 0) >= (parsed._lastUpdated || 0)) {
+                        parsed = cloudParsed;
+                    }
+                    cloudLastSavedSignature = cloudDataSignature(JSON.stringify(cloudParsed));
+                    localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, cloudUser.uid);
+                    cloudHydrationComplete = true;
+                } else {
+                    const hasLocalRecords = hasMeaningfulCloudData(parsed);
+                    if (hasLocalRecords && cloudOwnerUid !== cloudUser.uid) {
+                        cloudMigrationApproved = confirm('لا توجد بيانات محفوظة لهذا الحساب في السحابة. هل تريد رفع بيانات هذا الجهاز إليه؟');
+                        cloudHydrationComplete = cloudMigrationApproved;
+                        if (!cloudMigrationApproved) {
+                            setCloudStatus('تم الدخول — بانتظار تأكيد رفع بيانات الجهاز', 'working');
+                        }
+                    } else {
+                        cloudHydrationComplete = true;
+                    }
+                    cloudLastSavedSignature = null;
+                }
+            }
 
             if (parsed) {
                 appData = { ...defaultData, ...parsed };
@@ -4275,9 +4663,16 @@
             } else {
                 saveData();
             }
+            if (cloudUser && cloudReadSucceeded && cloudMigrationApproved) {
+                cloudHydrationComplete = true;
+                scheduleCloudSave(JSON.stringify(appData));
+            }
+            updateCloudAccountStatus();
         } catch (e) {
             console.error("خطأ تحميل البيانات:", e);
             appData = { ...defaultData };
+            cloudHydrationComplete = false;
+            if (cloudUser) reportCloudError('تعذر تحميل بيانات البرنامج بأمان', e);
         }
     }
 
@@ -4290,6 +4685,7 @@
             appData._lastUpdated = Date.now();
             const jsonStr = JSON.stringify(appData);
             localStorage.setItem(STORAGE_KEY, jsonStr);
+            scheduleCloudSave(jsonStr);
             
             // حفظ نسخة احتياطية متجددة لحماية البيانات من أي فقدان
             const totalEntities = (appData.products?.length || 0) + (appData.parties?.length || 0) + (appData.invoices?.length || 0) + (appData.expenses?.length || 0) + (appData.deposits?.length || 0) + (appData.damaged?.length || 0);
@@ -4302,247 +4698,7 @@
         }
         syncToIndexedDB(appData);
         updateHeaderBackupState();
-        if (typeof syncToFirestore === "function") syncToFirestore(appData);
     }
-
-    /* =========================================================================
-       محرك المزامنة السحابية الفورية مع Google Firebase Cloud Firestore
-       ========================================================================= */
-
-    var firebaseConfig = {
-        apiKey: "AIzaSyA6kt-gmzaP48O9UrMgftscepK9tIzpG9Q",
-        authDomain: "my-gemini-site-2026.firebaseapp.com",
-        projectId: "my-gemini-site-2026",
-        storageBucket: "my-gemini-site-2026.firebasestorage.app",
-        messagingSenderId: "481544142251",
-        appId: "1:481544142251:web:5d53ec7cd5a4d17b4b26ee"
-    };
-
-    var CLOUD_STORE_COLLECTION = 'store_data';
-    var CLOUD_STORE_DOCUMENT = 'main_store';
-    var isApplyingCloudSync = false;
-    var cloudSyncDebounceTimer = null;
-    var isFirestoreListenerActive = false;
-    var firestoreDb = null;
-
-    // تحديث شارات حالة السحابة في الشريط العلوي وشاشة الإعدادات
-    function updateCloudStatusUI(status, message) {
-        var headerIcon = document.getElementById('cloudHeaderIcon');
-        var headerText = document.getElementById('cloudHeaderText');
-        var headerBadge = document.getElementById('headerCloudBadge');
-        var settingsBadge = document.getElementById('settingsCloudStatusBadge');
-
-        var iconClass = 'ph-cloud-check text-emerald-600';
-        var badgeBg = 'bg-emerald-100 text-emerald-900 border-emerald-300';
-        var text = message || 'متصل بالسحابة (مباشر)';
-
-        if (status === 'syncing') {
-            iconClass = 'ph-arrows-clockwise text-amber-600 animate-spin';
-            badgeBg = 'bg-amber-100 text-amber-900 border-amber-300';
-            text = message || 'جاري الحفظ في السحابة...';
-        } else if (status === 'error') {
-            iconClass = 'ph-warning-circle text-rose-600';
-            badgeBg = 'bg-rose-100 text-rose-900 border-rose-300';
-            text = message || 'خطأ بالسحابة (تحقق من Rules)';
-        } else if (status === 'offline') {
-            iconClass = 'ph-cloud-slash text-slate-500';
-            badgeBg = 'bg-slate-100 text-slate-700 border-slate-300';
-            text = message || 'وضع محلي (تخزين الجهاز)';
-        }
-
-        if (headerIcon) headerIcon.className = 'ph ' + iconClass + ' text-sm';
-        if (headerText) headerText.textContent = text;
-        if (headerBadge) {
-            headerBadge.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border text-[11px] font-bold shadow-2xs hover:bg-emerald-50 cursor-pointer transition-all ' +
-                (status === 'error' ? 'border-rose-300 text-rose-900' : (status === 'syncing' ? 'border-amber-300 text-amber-900' : 'border-emerald-300 text-emerald-900'));
-        }
-
-        if (settingsBadge) {
-            settingsBadge.className = 'text-[10px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border ' + badgeBg;
-            settingsBadge.innerHTML = '<i class="ph ' + iconClass + ' text-xs"></i> <span>' + text + '</span>';
-        }
-    }
-
-    // تهيئة وبدء الاستماع اللحظي للسحابة (Realtime Listener)
-    function initCloudSync() {
-        if (typeof firebase === 'undefined') {
-            console.warn("مكتبة Firebase غير متوفرة أو لم يتم تحميلها (يعمل في الوضع المحلي الآمن)");
-            updateCloudStatusUI('offline', 'وضع محلي (تخزين الجهاز)');
-            return;
-        }
-
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            firestoreDb = firebase.firestore();
-
-            if (isFirestoreListenerActive) return;
-
-            updateCloudStatusUI('syncing', 'جاري الاتصال بـ Firebase...');
-            var docRef = firestoreDb.collection(CLOUD_STORE_COLLECTION).doc(CLOUD_STORE_DOCUMENT);
-
-            docRef.onSnapshot(function(docSnap) {
-                isFirestoreListenerActive = true;
-                if (docSnap.exists) {
-                    var cloudData = docSnap.data();
-                    var payload = cloudData.appData ? cloudData.appData : cloudData;
-
-                    if (payload && payload._lastUpdated && payload._lastUpdated > (appData._lastUpdated || 0)) {
-                        console.log("وصل تحديث جديد من السحابة، جاري التطبيق...");
-                        isApplyingCloudSync = true;
-                        appData = Object.assign({}, defaultData, payload);
-
-                        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appData)); } catch(e) {}
-                        syncToIndexedDB(appData);
-
-                        refreshAllApplicationViews();
-                        isApplyingCloudSync = false;
-                        updateCloudStatusUI('connected', 'متزامن مع السحابة (لحظي)');
-                        showToast("تم تحديث البيانات لحظياً من السحابة", "success");
-                    } else if (payload && (!appData._lastUpdated || (appData._lastUpdated || 0) <= payload._lastUpdated)) {
-                        updateCloudStatusUI('connected', 'متزامن مع السحابة (لحظي)');
-                    } else {
-                        syncToFirestore(appData);
-                    }
-                } else {
-                    console.log("السحابة فارغة، جاري رفع البيانات المحلية...");
-                    syncToFirestore(appData);
-                }
-            }, function(error) {
-                console.warn("تنبيه اتصال Firestore:", error);
-                if (error.code === 'permission-denied') {
-                    updateCloudStatusUI('error', 'يرجى تفعيل Rules في Firebase');
-                } else if (error.code === 'failed-precondition' || (error.message && error.message.includes('does not exist'))) {
-                    updateCloudStatusUI('error', 'يرجى إنشاء Firestore في وحدة تحكم فايربيس');
-                } else {
-                    updateCloudStatusUI('offline', 'وضع محلي (تخزين الجهاز)');
-                }
-            });
-        } catch (e) {
-            console.error("خطأ تشغيل Firebase:", e);
-            updateCloudStatusUI('offline', 'وضع محلي (تخزين الجهاز)');
-        }
-    }
-
-    // إرسال البيانات إلى السحابة فور الحفظ (مع Debounce لحماية الأداء)
-    function syncToFirestore(dataToSync) {
-        if (isApplyingCloudSync || isResettingData) return;
-        if (!firestoreDb) return;
-
-        if (cloudSyncDebounceTimer) clearTimeout(cloudSyncDebounceTimer);
-        cloudSyncDebounceTimer = setTimeout(function() {
-            try {
-                updateCloudStatusUI('syncing', 'جاري الحفظ بالسحابة...');
-                var docRef = firestoreDb.collection(CLOUD_STORE_COLLECTION).doc(CLOUD_STORE_DOCUMENT);
-                var cleanPayload = JSON.parse(JSON.stringify(dataToSync));
-                docRef.set({
-                    appData: cleanPayload,
-                    _lastUpdated: cleanPayload._lastUpdated || Date.now(),
-                    syncedAt: new Date().toISOString()
-                }, { merge: true }).then(function() {
-                    updateCloudStatusUI('connected', 'تم الحفظ بالسحابة بنجاح');
-                }).catch(function(err) {
-                    console.warn("خطأ حفظ البيانات بالسحابة:", err);
-                    if (err.code === 'permission-denied') {
-                        updateCloudStatusUI('error', 'تحقق من Rules في Firebase Console');
-                    } else {
-                        updateCloudStatusUI('offline', 'محفوظ محلياً (غير متصل)');
-                    }
-                });
-            } catch (err) {
-                console.warn("خطأ مزامنة السحابة:", err);
-                updateCloudStatusUI('offline', 'محفوظ محلياً فقط');
-            }
-        }, 300);
-    }
-
-    // زر المزامنة اليدوية الفورية
-    function manualTriggerCloudSync() {
-        if (!firestoreDb) {
-            initCloudSync();
-        }
-        manualForcePushToCloud();
-    }
-
-    // رفع قسري من الجهاز إلى السحابة
-    function manualForcePushToCloud() {
-        if (!firestoreDb) {
-            initCloudSync();
-            if (!firestoreDb) {
-                showToast("خدمة السحابة غير جاهزة حالياً، تأكد من الاتصال بالإنترنت", "error");
-                return;
-            }
-        }
-        try {
-            showToast("جاري رفع البيانات إلى سحابة Firebase...", "info");
-            appData._lastUpdated = Date.now();
-            var docRef = firestoreDb.collection(CLOUD_STORE_COLLECTION).doc(CLOUD_STORE_DOCUMENT);
-            var cleanPayload = JSON.parse(JSON.stringify(appData));
-            docRef.set({
-                appData: cleanPayload,
-                _lastUpdated: appData._lastUpdated,
-                syncedAt: new Date().toISOString()
-            }).then(function() {
-                updateCloudStatusUI('connected', 'تم رفع البيانات بنجاح');
-                showToast("تم رفع وتحديث بيانات السحابة بنجاح تام", "success");
-            }).catch(function(err) {
-                console.error(err);
-                showToast("فشل الرفع: " + (err.message || ''), "error");
-            });
-        } catch (err) {
-            console.error(err);
-            showToast("فشل الرفع: " + (err.message || ''), "error");
-        }
-    }
-
-    // جلب قسري من السحابة إلى الجهاز
-    function manualForcePullFromCloud() {
-        if (!firestoreDb) {
-            initCloudSync();
-            if (!firestoreDb) {
-                showToast("خدمة السحابة غير متوفرة حالياً", "error");
-                return;
-            }
-        }
-        try {
-            showToast("جاري جلب أحدث نسخة من السحابة...", "info");
-            var docRef = firestoreDb.collection(CLOUD_STORE_COLLECTION).doc(CLOUD_STORE_DOCUMENT);
-            docRef.get().then(function(docSnap) {
-                if (docSnap.exists) {
-                    var cloudData = docSnap.data();
-                    var payload = cloudData.appData ? cloudData.appData : cloudData;
-                    appData = Object.assign({}, defaultData, payload);
-                    saveData();
-                    refreshAllApplicationViews();
-                    showToast("تم جلب وتطبيق أحدث نسخة من السحابة بنجاح", "success");
-                } else {
-                    showToast("لا توجد بيانات محفوظة في السحابة بعد", "info");
-                }
-            }).catch(function(err) {
-                console.error(err);
-                showToast("فشل الجلب: " + (err.message || ''), "error");
-            });
-        } catch (err) {
-            console.error(err);
-            showToast("فشل الجلب: " + (err.message || ''), "error");
-        }
-    }
-
-    // تحديث كافة الشاشات والقوائم
-    function refreshAllApplicationViews() {
-        try { updateBusinessNameUI(); } catch(e) {}
-        try { renderInventoryList(); } catch(e) {}
-        try { renderPartiesList(); } catch(e) {}
-        try { renderHistoryDashboardBadges(); } catch(e) {}
-        try { updateReportData(); } catch(e) {}
-        try { updateSidebarCashBalance(); } catch(e) {}
-        try { updateWelcomeCardUI(); } catch(e) {}
-        try { renderPaymentMethodsDropdown(); } catch(e) {}
-        try { populateExpenseAndCustWallets(); } catch(e) {}
-        try { renderPartiesDashboardStats(); } catch(e) {}
-    }
-
 
     /* التواريخ والأوقات الإنجليزية (123) */
     
@@ -12027,13 +12183,33 @@ function startHeaderClock() {
     }
 
     async function executeResetData() {
+        if (cloudUser && !cloudHydrationComplete) {
+            showToast('لا يمكن تصفير البيانات قبل اكتمال قراءة النسخة السحابية؛ تحقق من الاتصال أو سجّل الخروج أولاً', 'error');
+            return;
+        }
+
         isResettingData = true;
         closeResetConfirmModal();
 
-        appData = JSON.parse(JSON.stringify(defaultData));
-        appData._lastUpdated = Date.now();
+        const resetData = JSON.parse(JSON.stringify(defaultData));
+        resetData._lastUpdated = Date.now();
+        if (cloudUser) {
+            try {
+                await writeCloudData(cloudUser.uid, JSON.stringify(resetData));
+                cloudLastSavedSignature = cloudDataSignature(JSON.stringify(resetData));
+                localStorage.setItem(CLOUD_OWNER_STORAGE_KEY, cloudUser.uid);
+            } catch (error) {
+                isResettingData = false;
+                reportCloudError('تعذر تصفير النسخة السحابية؛ لم يتم مسح بيانات الجهاز', error);
+                return;
+            }
+        }
+
+        appData = resetData;
 
         try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+        try { localStorage.removeItem(BACKUP_SNAPSHOT_KEY); } catch(e) {}
+        try { localStorage.removeItem(EMERGENCY_RESTORE_KEY); } catch(e) {}
         try {
             const db = idbDatabase || await openCommercialIDB();
             if (db) {
@@ -12282,9 +12458,11 @@ function startHeaderClock() {
             navigator.storage.persist().catch(() => {});
         }
 
+        await initializeFirebaseCloud();
         await openCommercialIDB();
         await loadData();
-        if (typeof initCloudSync === "function") initCloudSync();
+        cloudStartupComplete = true;
+        updateCloudAccountStatus();
         if (typeof repairAndSyncAllEntityIds === 'function') {
             repairAndSyncAllEntityIds();
         }
