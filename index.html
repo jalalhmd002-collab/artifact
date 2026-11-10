@@ -406,6 +406,253 @@
     ::-webkit-scrollbar-thumb:hover { background: #10b981; }
 </style>
 
+<style>
+    #mainBottomNavBar {
+        display: none !important;
+    }
+
+    @media (max-width: 767px) {
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            min-height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            height: 100dvh;
+            min-height: 100dvh;
+        }
+
+        #mainAppHeader {
+            min-height: 48px;
+            height: 48px;
+            padding-inline: 0.75rem;
+        }
+
+        #mainAppHeader .relative.w-80,
+        #mainAppHeader #headerStatusDot,
+        #mainAppHeader #headerDate,
+        #mainAppHeader #headerClock,
+        #mainAppHeader .flex.items-center.gap-4 {
+            display: none !important;
+        }
+
+        #headerBusinessTitle {
+            display: block;
+            max-width: calc(100vw - 4.5rem);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.875rem;
+        }
+
+        #mainAppShell {
+            min-height: 0;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #desktopSidebar {
+            display: none !important;
+        }
+
+        #mainDesktopWorkspace {
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            min-height: 0;
+            height: auto;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 0.75rem 0.75rem calc(5.5rem + env(safe-area-inset-bottom, 0px)) !important;
+        }
+
+        #mainDesktopWorkspace section,
+        #mainDesktopWorkspace .grid,
+        #mainDesktopWorkspace .tech-card,
+        #mainDesktopWorkspace .desktop-card {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        #mainDesktopWorkspace .grid-cols-12,
+        #mainDesktopWorkspace .grid-cols-2 {
+            grid-template-columns: minmax(0, 1fr) !important;
+        }
+
+        #mainDesktopWorkspace .grid-cols-3,
+        #mainDesktopWorkspace .grid-cols-4 {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        #mainDesktopWorkspace .grid-cols-12 > [class*="col-span-"] {
+            grid-column: auto / auto !important;
+        }
+
+        #tab-inventory .desktop-card.p-3.flex.items-center.justify-between.gap-3.flex-wrap {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        #tab-inventory .desktop-card.p-3.flex.items-center.justify-between.gap-3.flex-wrap > .relative.flex-1 {
+            width: 100%;
+            max-width: none;
+        }
+
+        #tab-inventory .desktop-card.p-3.flex.items-center.justify-between.gap-3.flex-wrap > .flex.items-center.gap-2.text-xs {
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        #tab-reports .desktop-card.p-4.flex.items-center.justify-between.theme-border-emerald {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.75rem;
+        }
+
+        #tab-reports .desktop-card.p-4.flex.items-center.justify-between.theme-border-emerald > .flex.items-center.gap-2\.5 {
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        #mainBottomNavBar {
+            display: flex !important;
+            z-index: 40 !important;
+            align-items: stretch;
+            justify-content: space-around;
+            gap: 0.125rem;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: 42rem !important;
+            min-height: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+            padding: 0.35rem 0.4rem calc(0.35rem + env(safe-area-inset-bottom, 0px)) !important;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #a7f3d0;
+            border-bottom: 0;
+            border-radius: 1rem 1rem 0 0;
+            box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.12);
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #mainBottomNavBar .mobile-nav-item {
+            display: flex;
+            flex: 1 0 0;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem;
+            min-width: 2.65rem;
+            min-height: 2.9rem;
+            padding: 0.25rem 0.15rem;
+            border: 0;
+            border-radius: 0.75rem;
+            background: transparent;
+            color: #334155;
+            font-size: 0.625rem;
+            line-height: 1.15;
+            text-align: center;
+            white-space: normal;
+            touch-action: manipulation;
+        }
+
+        #mainBottomNavBar .mobile-nav-item i {
+            color: #047857;
+            font-size: 1.15rem;
+        }
+
+        #mainBottomNavBar .mobile-nav-item.is-active {
+            background: #ecfdf5;
+            color: #065f46;
+            box-shadow: inset 0 0 0 1px #a7f3d0;
+        }
+
+        #mainBottomNavBar .mobile-nav-item.is-active i {
+            color: #047857;
+        }
+
+        #mainBottomNavBar .mobile-nav-item:focus-visible {
+            outline: 2px solid #059669;
+            outline-offset: -2px;
+        }
+
+        #appWelcomeSplashModal {
+            align-items: flex-start;
+            overflow-y: auto;
+            padding-top: max(0.75rem, env(safe-area-inset-top, 0px)) !important;
+            padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px)) !important;
+        }
+
+        #appWelcomeSplashModal > div {
+            grid-template-columns: minmax(0, 1fr) !important;
+            max-height: calc(100dvh - 1.5rem);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
+        #appWelcomeSplashModal .col-span-12 {
+            grid-column: 1 / -1 !important;
+        }
+
+        div[id$="Modal"]:not(#appWelcomeSplashModal) {
+            align-items: flex-start;
+            overflow-y: auto;
+            padding-top: max(0.5rem, env(safe-area-inset-top, 0px)) !important;
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px)) !important;
+            overscroll-behavior: contain;
+        }
+
+        div[id$="Modal"] > div {
+            box-sizing: border-box;
+            max-height: calc(100dvh - 1rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+
+        div:has(> table) {
+            box-sizing: border-box;
+            max-width: 100%;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: max-content !important;
+            min-width: 100% !important;
+        }
+
+        input:not([type="hidden"]),
+        select,
+        textarea {
+            min-height: 2.75rem;
+            font-size: 16px !important;
+        }
+
+        button {
+            min-height: 2.5rem;
+            touch-action: manipulation;
+        }
+
+        .btn-action-square {
+            min-width: 2.5rem !important;
+            min-height: 2.5rem !important;
+            max-width: 2.5rem !important;
+            max-height: 2.5rem !important;
+        }
+    }
+
+    @media print {
+        #mainBottomNavBar {
+            display: none !important;
+        }
+    }
+</style>
+
 </head>
 <body class="h-full overflow-hidden select-none bg-[#f0fdf4] text-black font-sans flex flex-col">
 
@@ -555,7 +802,7 @@
     </header>
 
     <!-- ======================= الحاوية الرئيسية (القائمة الجانبية ومساحة العمل) ======================= -->
-    <div class="flex-1 flex overflow-hidden w-full">
+    <div id="mainAppShell" class="flex-1 flex overflow-hidden w-full">
 
         <!-- ======================= القائمة الجانبية (خلفية خضراء هادئة منسجمة وخطوط سوداء) ======================= -->
         <aside id="desktopSidebar" class="w-64 bg-[#f0fdf4] border-l-2 border-emerald-200/80 flex flex-col justify-between shrink-0 select-none z-30 h-full shadow-xs">
@@ -5274,6 +5521,14 @@ function startHeaderClock() {
                     ${item.key ? `<span class="text-[10px] bg-emerald-200 text-emerald-950 px-1.5 py-0.5 rounded font-mono font-bold">${item.key}</span>` : ''}
                 `;
             }
+        });
+
+        document.querySelectorAll('#mainBottomNavBar .mobile-nav-item').forEach(btn => {
+            const isActive = btn.dataset.tab === activeTabId &&
+                (btn.dataset.tab !== 'invoice' || btn.dataset.mode === mode);
+            btn.classList.toggle('is-active', isActive);
+            if (isActive) btn.setAttribute('aria-current', 'page');
+            else btn.removeAttribute('aria-current');
         });
     }
 
@@ -14492,6 +14747,28 @@ window.addEventListener('DOMContentLoaded', () => {
             </div>
         </div>
     </div>
-<div id="mainBottomNavBar" class="hidden"></div>
+<nav id="mainBottomNavBar" class="hidden" aria-label="التنقل الرئيسي">
+    <button type="button" id="mobileNav-invoice" class="mobile-nav-item is-active" data-tab="invoice" data-mode="sale" aria-label="فاتورة مبيعات" aria-current="page" onclick="setInvoiceMode('sale'); switchTab('invoice')">
+        <i class="ph ph-receipt" aria-hidden="true"></i><span>المبيعات</span>
+    </button>
+    <button type="button" id="mobileNav-purchases" class="mobile-nav-item" data-tab="invoice" data-mode="purchase" aria-label="فاتورة مشتريات" onclick="setInvoiceMode('purchase'); switchTab('invoice')">
+        <i class="ph ph-truck" aria-hidden="true"></i><span>المشتريات</span>
+    </button>
+    <button type="button" id="mobileNav-inventory" class="mobile-nav-item" data-tab="inventory" aria-label="المخزون" onclick="switchTab('inventory')">
+        <i class="ph ph-warehouse" aria-hidden="true"></i><span>المخزون</span>
+    </button>
+    <button type="button" id="mobileNav-parties" class="mobile-nav-item" data-tab="parties" aria-label="الحسابات والعملاء" onclick="switchTab('parties')">
+        <i class="ph ph-users-three" aria-hidden="true"></i><span>الحسابات</span>
+    </button>
+    <button type="button" id="mobileNav-history" class="mobile-nav-item" data-tab="history" aria-label="سجل العمليات" onclick="switchTab('history')">
+        <i class="ph ph-clock-counter-clockwise" aria-hidden="true"></i><span>السجل</span>
+    </button>
+    <button type="button" id="mobileNav-reports" class="mobile-nav-item" data-tab="reports" aria-label="التقارير" onclick="switchTab('reports')">
+        <i class="ph ph-chart-line-up" aria-hidden="true"></i><span>التقارير</span>
+    </button>
+    <button type="button" id="mobileNav-settings" class="mobile-nav-item" data-tab="settings" aria-label="الإعدادات" onclick="switchTab('settings')">
+        <i class="ph ph-gear" aria-hidden="true"></i><span>الإعدادات</span>
+    </button>
+</nav>
 </body>
 </html>
