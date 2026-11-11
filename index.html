@@ -5062,6 +5062,121 @@
         return cashPm ? cashPm.id : 'cash';
     }
 
+    function validatePurchasePayment(total, paid, paymentMethod, existingInvoice = null) {
+        if (isDebtPaymentMethod(paymentMethod) && paid <= 0.000001) return true;
+
+        const walletId = isDebtPaymentMethod(paymentMethod) ? getPrimaryCashWalletId() : paymentMethod;
+        const cashPayment = isCashWallet(walletId);
+        if (!cashPayment && total - paid > 0.000001) {
+            showToast('يمكن تقسيم فاتورة الشراء بين الدفع والدين عند الدفع نقداً فقط. المحفظة غير النقدية يجب أن تغطي الفاتورة كاملة', 'error');
+            return false;
+        }
+        if (cashPayment && paid <= 0.000001 && total > 0) {
+            showToast('لشراء جزء نقداً والباقي بالدين، أدخل المبلغ النقدي؛ ولتسجيلها ديناً بالكامل اختر وسيلة الدفع «دين»', 'error');
+            return false;
+        }
+
+        const oldWalletPayment = existingInvoice && existingInvoice.paymentMethod === walletId
+            ? parseSafeFloat(existingInvoice.paidAmount)
+            : 0;
+        const available = Math.max(0, getWalletCurrentBalance(walletId) + oldWalletPayment);
+        if (paid > available + 0.000001) {
+            showToast(`رصيد ${cashPayment ? 'الصندوق النقدي' : `محفظة (${getPaymentMethodLabel(walletId)})`} لا يكفي. المتاح: ${formatMoney(available)} شيكل`, 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function getSaleStockRequirements(items) {
+        const required = new Map();
+        const expandProduct = (productId, quantity, path = new Set(), recipeOverride = null) => {
+            const product = (appData.products || []).find(p => p.id === productId);
+            if (!product) return `الصنف المرتبط بالفاتورة غير موجود في المخزن (${productId})`;
+            if (!Number.isFinite(quantity) || quantity <= 0) return `كمية غير صالحة للصنف (${product.name})`;
+
+            if (product.isComposite) {
+                if (path.has(productId)) return `يوجد تكرار دائري في مكونات الصنف المركب (${product.name})`;
+                const components = recipeOverride || product.components || [];
+                if (components.length === 0) return `لا توجد مكونات مسجلة للصنف المركب (${product.name})`;
+                const nextPath = new Set(path);
+                nextPath.add(productId);
+                for (const component of components) {
+                    const componentQuantity = parseSafeFloat(component.quantity);
+                    if (!component.productId || componentQuantity <= 0) {
+                        return `بيانات مكونات الصنف المركب (${product.name}) غير صالحة`;
+                    }
+                    const error = expandProduct(component.productId, quantity * componentQuantity, nextPath);
+                    if (error) return error;
+                }
+                return null;
+            }
+
+            required.set(productId, (required.get(productId) || 0) + quantity);
+            return null;
+        };
+
+        for (const item of items || []) {
+            if (!item.productId) continue;
+            const quantity = parseSafeFloat(item.quantity);
+            const product = (appData.products || []).find(p => p.id === item.productId);
+            if (!product) return { required, error: `الصنف (${item.name || item.productId}) غير موجود في المخزن` };
+            const error = expandProduct(item.productId, quantity, new Set(), product.isComposite ? item.components : null);
+            if (error) return { required, error };
+        }
+        return { required, error: null };
+    }
+
+    function validateSaleStock(items) {
+        const { required, error } = getSaleStockRequirements(items);
+        if (error) {
+            showToast(error, 'error');
+            return false;
+        }
+        for (const [productId, quantity] of required) {
+            const product = (appData.products || []).find(p => p.id === productId);
+            const available = parseSafeFloat(product?.stockQuantity);
+            if (quantity > available + 0.000001) {
+                showToast(`الكمية المطلوبة للصنف (${product?.name || productId}) هي ${formatMoney(quantity)} والمتوفر ${formatMoney(available)} فقط`, 'error');
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function getInvoiceItemUnitCost(item) {
+        const savedCost = Number(item?.costPrice);
+        if (Number.isFinite(savedCost) && savedCost >= 0) return savedCost;
+        const product = (appData.products || []).find(p => p.id === item?.productId);
+        return Math.max(0, parseSafeFloat(product?.costPrice));
+    }
+
+    function getInvoiceItemCost(item) {
+        return parseSafeFloat(item?.quantity) * getInvoiceItemUnitCost(item);
+    }
+
+    function getInvoiceNetItemRevenues(invoice) {
+        const items = invoice?.items || [];
+        const grossAmounts = items.map(item => {
+            const storedTotal = Number(item.total);
+            return Math.max(0, Number.isFinite(storedTotal) ? storedTotal : parseSafeFloat(item.quantity) * parseSafeFloat(item.unitPrice));
+        });
+        const grossTotal = grossAmounts.reduce((sum, amount) => sum + amount, 0);
+        const storedInvoiceTotal = Number(invoice?.totalAmount);
+        const invoiceTotal = Number.isFinite(storedInvoiceTotal)
+            ? Math.max(0, storedInvoiceTotal)
+            : Math.max(0, grossTotal - Math.max(0, parseSafeFloat(invoice?.discount)));
+        let allocatedRevenue = 0;
+        return grossAmounts.map((gross, index) => {
+            const revenue = grossTotal > 0
+                ? (index === grossAmounts.length - 1
+                    ? Math.round((invoiceTotal - allocatedRevenue) * 100) / 100
+                    : Math.floor((invoiceTotal * gross / grossTotal) * 100 + 1e-8) / 100)
+                : 0;
+            allocatedRevenue += revenue;
+            return Math.max(0, revenue);
+        });
+    }
+
     /* حساب الرصيد الفعلي الدائم التراكمي للمحفظة */
     function getWalletCurrentBalance(walletId) {
         // 1. الوارد من فواتير المبيعات
@@ -5196,12 +5311,7 @@
         const allPeriodInvoices = (appData.invoices || []).filter(inv => inv.type === 'sale' && inv.date >= range.start && inv.date <= range.end);
         
         // إجمالي مبيعات كل الأصناف في الفترة لحساب النسبة بدقة
-        let overallPeriodSales = 0;
-        allPeriodInvoices.forEach(inv => {
-            (inv.items || []).forEach(it => {
-                overallPeriodSales += (it.total || 0);
-            });
-        });
+        const overallPeriodSales = allPeriodInvoices.reduce((sum, inv) => sum + parseSafeFloat(inv.totalAmount), 0);
 
         // حركات هذا الصنف تحديداً
         const matchingTransactions = [];
@@ -5210,14 +5320,16 @@
         let totalDebt = 0; // المبالغ بالدين
 
         allPeriodInvoices.forEach(inv => {
-            const matchedItems = (inv.items || []).filter(it => 
+            const netItemRevenues = getInvoiceNetItemRevenues(inv);
+            const matchedIndexes = (inv.items || []).map((it, index) => ({ it, index })).filter(({ it }) =>
                 (targetId && it.productId === targetId) ||
                 (it.name && it.name.trim().toLowerCase() === targetName)
             );
 
-            if (matchedItems.length > 0) {
+            if (matchedIndexes.length > 0) {
+                const matchedItems = matchedIndexes.map(entry => entry.it);
                 totalCount += 1; // كل فاتورة تم بيعه فيها تُحسب كـ "مرة بيع" كالصورة المرفقة تماماً
-                const lineTotal = matchedItems.reduce((sum, it) => sum + (it.total || 0), 0);
+                const lineTotal = matchedIndexes.reduce((sum, entry) => sum + (netItemRevenues[entry.index] || 0), 0);
                 totalIncome += lineTotal;
 
                 const invDiff = Math.max(0, Math.round(((inv.totalAmount || 0) - (inv.paidAmount || 0)) * 100) / 100);
@@ -6068,40 +6180,30 @@ function startHeaderClock() {
             return;
         }
 
-        // المنع الصارم لبيع بضاعة رصيدها صفر أو تجاوز المتوفر بالمخزن
-        if (currentInvoiceState.mode === 'sale' && prodId) {
-            const prod = (appData.products || []).find(p => p.id === prodId);
-            if (prod) {
-                if (!prod.isComposite) {
-                    if ((prod.stockQuantity || 0) <= 0) {
-                        showToast(`عفواً، ممنوع البيع لهذا الصنف لأن رصيده في المخزن صفر (نفد من المخزن)`);
-                        return;
-                    }
-                    let existingQty = 0;
-                    const ex = currentInvoiceState.items.find(it => it.productId === prodId);
-                    if (ex) existingQty = ex.quantity || 0;
-                    if ((existingQty + qty) > prod.stockQuantity) {
-                        showToast(`عفواً، الكمية المطلوبة تتجاوز الرصيد المتوفر بالمخزن (${prod.stockQuantity})`);
-                        return;
-                    }
-                } else {
-                    for (const cmp of (prod.components || [])) {
-                        const sub = (appData.products || []).find(p => p.id === cmp.productId);
-                        if (!sub || (sub.stockQuantity || 0) <= 0) {
-                            showToast(`عفواً، لا يمكن بيع الباقة لنفاد المكون (${sub ? sub.name : 'أحد المكونات'}) من المخزن`);
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
         // فحص إذا كان الصنف مضافاً مسبقاً في الفاتورة لزيادة الكمية بدلاً من إضافة صف جديد
         let existingItem = null;
         if (prodId) {
             existingItem = currentInvoiceState.items.find(it => it.productId === prodId);
         } else {
             existingItem = currentInvoiceState.items.find(it => !it.productId && it.name.trim().toLowerCase() === itemName.toLowerCase());
+        }
+
+        if (currentInvoiceState.mode === 'sale' && prodId) {
+            const prod = (appData.products || []).find(p => p.id === prodId);
+            if (!prod) {
+                showToast('الصنف المحدد غير موجود في المخزن', 'error');
+                return;
+            }
+            const proposedItems = currentInvoiceState.items.filter(it => it.productId !== prodId);
+            proposedItems.push({
+                ...(existingItem || {}),
+                productId: prod.id,
+                name: prod.name,
+                quantity: Math.round(((existingItem?.quantity || 0) + qty) * 100) / 100,
+                isComposite: !!prod.isComposite,
+                components: existingItem?.components || prod.components || []
+            });
+            if (!validateSaleStock(proposedItems)) return;
         }
 
         if (existingItem) {
@@ -6164,13 +6266,10 @@ function startHeaderClock() {
             return;
         }
         if (delta > 0 && currentInvoiceState.mode === 'sale' && item.productId) {
-            const prod = (appData.products || []).find(p => p.id === item.productId);
-            if (prod && !prod.isComposite) {
-                if (newQty > prod.stockQuantity) {
-                    showToast(`لا يمكن زيادة الكمية؛ الرصيد الأقصى المتوفر بالمخزن هو (${prod.stockQuantity})`);
-                    return;
-                }
-            }
+            const proposedItems = currentInvoiceState.items.map((invoiceItem, itemIndex) =>
+                itemIndex === idx ? { ...invoiceItem, quantity: newQty } : invoiceItem
+            );
+            if (!validateSaleStock(proposedItems)) return;
         }
         item.quantity = newQty;
         item.total = Math.round((item.quantity * item.unitPrice) * 100) / 100;
@@ -6316,6 +6415,11 @@ function startHeaderClock() {
         const total = currentInvoiceState.total;
         const paid = currentInvoiceState.paid;
 
+        if (!party) {
+            showToast('يرجى اختيار الزبون أو المورد أولاً', 'error');
+            return;
+        }
+
         if (items.length === 0) {
             showToast("يرجى إضافة صنف واحد على الأقل للفاتورة");
             return;
@@ -6326,39 +6430,25 @@ function startHeaderClock() {
             return;
         }
 
+        if (!Number.isFinite(paid) || paid < 0 || paid > total + 0.000001) {
+            showToast('المبلغ المدفوع لا يمكن أن يكون سالباً أو أكبر من قيمة الفاتورة', 'error');
+            return;
+        }
+
+        if (currentInvoiceState.discount < 0 || currentInvoiceState.discount > currentInvoiceState.subtotal) {
+            showToast('قيمة الخصم يجب أن تكون بين صفر ومجموع الأصناف', 'error');
+            return;
+        }
+
         const diff = total - paid;
         if (diff > 0 && (party.id === 'cust_walkin' || party.id === 'supp_walkin')) {
             showToast(`لا يمكن تسجيل دين على فرد عابر، يرجى كتابة اسم ${isSale ? 'الزبون' : 'المورد'} لحفظ حسابه.`);
             return;
         }
 
-        // منع الشراء إذا لم يتوفر المبلغ في المحفظة أو البنك
-        if (!isSale && paid > 0 && !isCashWallet(currentInvoiceState.paymentMethod)) {
-            const avail = getWalletCurrentBalance(currentInvoiceState.paymentMethod);
-            if (paid > avail) {
-                showToast(`عفواً، يمنع الشراء لعدم توفر رصيد كافٍ في محفظة (${getPaymentMethodLabel(currentInvoiceState.paymentMethod)}). الرصيد المتاح: ${formatMoney(avail)} شيكل`);
-                return;
-            }
-        }
+        if (!isSale && !validatePurchasePayment(total, paid, currentInvoiceState.paymentMethod)) return;
 
-        // منع البيع لبضاعة رصيدها في المخزن صفر
-        if (isSale) {
-            for (const it of items) {
-                if (it.productId) {
-                    const prod = (appData.products || []).find(p => p.id === it.productId);
-                    if (prod && !prod.isComposite) {
-                        if ((prod.stockQuantity || 0) <= 0) {
-                            showToast(`عفواً، ممنوع البيع لبضاعة رصيدها في المخزن صفر (${prod.name})`);
-                            return;
-                        }
-                        if (it.quantity > prod.stockQuantity) {
-                            showToast(`الكمية المطلوبة للصنف (${prod.name}) تتجاوز المتوفر بالمخزن (${prod.stockQuantity})`);
-                            return;
-                        }
-                    }
-                }
-            }
-        }
+        if (isSale && !validateSaleStock(items)) return;
 
         const now = new Date();
         const chosenDate = document.getElementById('invoiceDateInput')?.value || getWesternDateString(now);
@@ -6396,30 +6486,22 @@ function startHeaderClock() {
         };
 
         // 1. ترحيل وتحديث حركة المخزون (مع توريد وإضافة البضاعة الجديدة للمخزن تلقائياً عند الشراء)
-        items.forEach(it => {
-            let prod = null;
-            if (it.productId) {
-                prod = (appData.products || []).find(p => p.id === it.productId);
-            } else if (it.name && it.name.trim()) {
-                const trimmed = it.name.trim().toLowerCase();
-                prod = (appData.products || []).find(p => p.name.trim().toLowerCase() === trimmed);
-            }
-
-            if (isSale) {
-                if (prod) {
-                    if (prod.isComposite) {
-                        // خصم مكونات المنتج المركب
-                        (prod.components || []).forEach(cmp => {
-                            const subProd = (appData.products || []).find(p => p.id === cmp.productId);
-                            if (subProd) {
-                                subProd.stockQuantity = Math.round((subProd.stockQuantity - (cmp.quantity * it.quantity)) * 100) / 100;
-                            }
-                        });
-                    } else {
-                        prod.stockQuantity = Math.round((prod.stockQuantity - it.quantity) * 100) / 100;
-                    }
+        if (isSale) {
+            const { required } = getSaleStockRequirements(items);
+            required.forEach((quantity, productId) => {
+                const product = (appData.products || []).find(p => p.id === productId);
+                product.stockQuantity = Math.round((parseSafeFloat(product.stockQuantity) - quantity) * 100) / 100;
+            });
+        } else {
+            items.forEach(it => {
+                let prod = null;
+                if (it.productId) {
+                    prod = (appData.products || []).find(p => p.id === it.productId);
+                } else if (it.name && it.name.trim()) {
+                    const trimmed = it.name.trim().toLowerCase();
+                    prod = (appData.products || []).find(p => p.name.trim().toLowerCase() === trimmed);
                 }
-            } else {
+
                 // فاتورة شراء: إذا كان الصنف مسجلاً يتم زيادة كميته وتحديث تكلفته، وإذا لم يكن مسجلاً يضاف تلقائياً للمخزن
                 if (prod) {
                     it.productId = prod.id;
@@ -6445,8 +6527,8 @@ function startHeaderClock() {
                     appData.products.push(newProd);
                     it.productId = newProdId;
                 }
-            }
-        });
+            });
+        }
 
         // 2. تحديث رصيد الفرد
         if (party.id !== 'cust_walkin' && party.id !== 'supp_walkin') {
@@ -7196,22 +7278,26 @@ function startHeaderClock() {
 
         let totalSoldQty = 0;
         let totalSoldRev = 0;
+        let totalSoldCost = 0;
         let totalPurchasedQty = 0;
 
         const movements = [];
 
         (appData.invoices || []).forEach(inv => {
-            (inv.items || []).forEach(it => {
+            const netItemRevenues = getInvoiceNetItemRevenues(inv);
+            (inv.items || []).forEach((it, itemIndex) => {
                 if (it.productId === prod.id || (prod.isComposite && (it.productId === prod.id))) {
                     if (inv.type === 'sale') {
                         totalSoldQty += (it.quantity || 0);
-                        totalSoldRev += (it.total || 0);
+                        const itemRevenue = netItemRevenues[itemIndex] || 0;
+                        totalSoldRev += itemRevenue;
+                        totalSoldCost += getInvoiceItemCost(it);
                         movements.push({
                             title: `بيع: ${inv.partyName}`,
                             typeLabel: 'فاتورة مبيعات',
                             qty: it.quantity,
                             price: it.unitPrice,
-                            total: it.total,
+                            total: itemRevenue,
                             isSale: true,
                             date: inv.date,
                             time: inv.time || '',
@@ -7237,7 +7323,7 @@ function startHeaderClock() {
 
         movements.sort((a, b) => b.timestamp - a.timestamp);
 
-        const estimatedProfit = Math.round((totalSoldRev - (totalSoldQty * (prod.costPrice || 0))) * 100) / 100;
+        const estimatedProfit = Math.round((totalSoldRev - totalSoldCost) * 100) / 100;
 
         const soldQtyEl = document.getElementById('statProdSoldQty');
         const purQtyEl = document.getElementById('statProdPurchasedQty');
@@ -7371,12 +7457,14 @@ function startHeaderClock() {
         let totalSold = 0, totalPur = 0, totalRev = 0;
 
         (appData.invoices || []).forEach(inv => {
-            (inv.items || []).forEach(it => {
+            const netItemRevenues = getInvoiceNetItemRevenues(inv);
+            (inv.items || []).forEach((it, itemIndex) => {
                 if (it.productId === prod.id) {
                     if (inv.type === 'sale') {
                         totalSold += it.quantity;
-                        totalRev += it.total;
-                        movements.push({ title: `بيع: ${inv.partyName}`, type: 'مبيعات', qty: it.quantity, price: it.unitPrice, total: it.total, date: `${inv.date} ${inv.time || ''}` });
+                        const itemRevenue = netItemRevenues[itemIndex] || 0;
+                        totalRev += itemRevenue;
+                        movements.push({ title: `بيع: ${inv.partyName}`, type: 'مبيعات', qty: it.quantity, price: it.unitPrice, total: itemRevenue, date: `${inv.date} ${inv.time || ''}` });
                     } else {
                         totalPur += it.quantity;
                         movements.push({ title: `شراء: ${inv.partyName}`, type: 'مشتريات', qty: it.quantity, price: it.unitPrice, total: it.total, date: `${inv.date} ${inv.time || ''}` });
@@ -8787,10 +8875,21 @@ function startHeaderClock() {
         const newDate = document.getElementById('editInvoiceDate')?.value || inv.date;
         const newPartyName = document.getElementById('editInvoicePartyName')?.value.trim() || inv.partyName;
         const newServices = document.getElementById('editInvoiceServices')?.value.trim() || inv.servicesText;
-        const newTotal = parseFloat(document.getElementById('editInvoiceCost')?.value) || 0;
-        const newPaid = parseFloat(document.getElementById('editInvoicePaid')?.value) || 0;
-        const newPayment = document.getElementById('editInvoicePayment')?.value || inv.paymentMethod;
+        const newTotal = parseSafeFloat(document.getElementById('editInvoiceCost')?.value, NaN);
+        const newPaid = parseSafeFloat(document.getElementById('editInvoicePaid')?.value, NaN);
+        let newPayment = document.getElementById('editInvoicePayment')?.value || inv.paymentMethod;
         const newNotes = document.getElementById('editInvoiceNotes')?.value.trim() || '';
+
+        if (!Number.isFinite(newTotal) || newTotal <= 0 ||
+            !Number.isFinite(newPaid) || newPaid < 0 || newPaid > newTotal + 0.000001) {
+            showToast('تحقق من مبلغ الفاتورة والمدفوع؛ يجب أن يكون المدفوع بين صفر وقيمة الفاتورة', 'error');
+            return;
+        }
+
+        if (inv.type === 'purchase' && !validatePurchasePayment(newTotal, newPaid, newPayment, inv)) return;
+        if (inv.type === 'purchase' && newPaid > 0 && isDebtPaymentMethod(newPayment)) {
+            newPayment = getPrimaryCashWalletId();
+        }
 
         const oldDiff = (inv.totalAmount || 0) - (inv.paidAmount || 0);
         const newDiff = newTotal - newPaid;
@@ -8916,26 +9015,71 @@ function startHeaderClock() {
             const isSale = inv.type === 'sale';
             const diff = (inv.totalAmount || 0) - (inv.paidAmount || 0);
 
-            // 1. إعادة تسوية المخزون
-            (inv.items || []).forEach(it => {
-                if (it.productId) {
-                    const prod = (appData.products || []).find(p => p.id === it.productId);
-                    if (prod) {
-                        if (isSale) {
-                            if (prod.isComposite) {
-                                (prod.components || []).forEach(cmp => {
-                                    const sub = (appData.products || []).find(p => p.id === cmp.productId);
-                                    if (sub) sub.stockQuantity = Math.round((sub.stockQuantity + (cmp.quantity * it.quantity)) * 100) / 100;
-                                });
-                            } else {
-                                prod.stockQuantity = Math.round((prod.stockQuantity + it.quantity) * 100) / 100;
-                            }
-                        } else {
-                            prod.stockQuantity = Math.round((prod.stockQuantity - it.quantity) * 100) / 100;
-                        }
+            let saleStockToRestore = null;
+            if (isSale) {
+                const stockCheck = getSaleStockRequirements(inv.items || []);
+                if (stockCheck.error) {
+                    showToast(`تعذر حذف الفاتورة واستعادة المخزون بأمان: ${stockCheck.error}`, 'error');
+                    return;
+                }
+                saleStockToRestore = stockCheck.required;
+            }
+
+            if (!isSale) {
+                const stockToRemove = new Map();
+                (inv.items || []).forEach(item => {
+                    let product = item.productId
+                        ? (appData.products || []).find(p => p.id === item.productId)
+                        : null;
+                    if (!product && item.name) {
+                        product = (appData.products || []).find(p =>
+                            p.name.trim().toLowerCase() === item.name.trim().toLowerCase()
+                        );
+                    }
+                    if (product) {
+                        stockToRemove.set(product.id, (stockToRemove.get(product.id) || 0) + parseSafeFloat(item.quantity));
+                    }
+                });
+
+                for (const [productId, quantity] of stockToRemove) {
+                    const product = (appData.products || []).find(p => p.id === productId);
+                    const available = parseSafeFloat(product?.stockQuantity);
+                    if (quantity > available + 0.000001) {
+                        const laterSaleQty = (appData.invoices || [])
+                            .filter(other => other.id !== inv.id && other.type === 'sale' &&
+                                (other.date > inv.date || (other.date === inv.date && (other.timestamp || 0) > (inv.timestamp || 0))))
+                            .reduce((sum, other) => {
+                                const { required } = getSaleStockRequirements(other.items || []);
+                                return sum + (required.get(productId) || 0);
+                            }, 0);
+                        const soldNote = laterSaleQty > 0
+                            ? ` توجد فواتير بيع لاحقة مسجلة بكمية ${formatMoney(laterSaleQty)}.`
+                            : '';
+                        showToast(`لا يمكن حذف فاتورة الشراء: الكمية المستلمة من (${product?.name || productId}) هي ${formatMoney(quantity)} والمتبقي بالمخزن ${formatMoney(available)}.${soldNote}`, 'error');
+                        return;
                     }
                 }
-            });
+            }
+
+            // 1. إعادة تسوية المخزون
+            if (isSale) {
+                saleStockToRestore.forEach((quantity, productId) => {
+                    const product = (appData.products || []).find(p => p.id === productId);
+                    product.stockQuantity = Math.round((parseSafeFloat(product.stockQuantity) + quantity) * 100) / 100;
+                });
+            } else {
+                (inv.items || []).forEach(it => {
+                    let product = it.productId ? (appData.products || []).find(p => p.id === it.productId) : null;
+                    if (!product && it.name) {
+                        product = (appData.products || []).find(p =>
+                            p.name.trim().toLowerCase() === it.name.trim().toLowerCase()
+                        );
+                    }
+                    if (product) {
+                        product.stockQuantity = Math.round((parseSafeFloat(product.stockQuantity) - parseSafeFloat(it.quantity)) * 100) / 100;
+                    }
+                });
+            }
 
             // 2. إعادة تسوية رصيد الفرد
             if (inv.partyId && inv.partyId !== 'cust_walkin' && inv.partyId !== 'supp_walkin') {
@@ -10727,10 +10871,7 @@ function startHeaderClock() {
 
             (inv.items || []).forEach(it => {
                 if (it.productId) {
-                    const prod = (appData.products || []).find(p => p.id === it.productId);
-                    if (prod) {
-                        totalCOGS += (it.quantity || 0) * (prod.costPrice || 0);
-                    }
+                    totalCOGS += getInvoiceItemCost(it);
                 }
             });
         });
@@ -10867,7 +11008,8 @@ function startHeaderClock() {
         let totalSoldItemsCount = 0;
 
         periodInvoices.filter(i => i.type === 'sale').forEach(inv => {
-            (inv.items || []).forEach(it => {
+            const netItemRevenues = getInvoiceNetItemRevenues(inv);
+            (inv.items || []).forEach((it, itemIndex) => {
                 // إيجاد المنتج الأصلي بالمعرف أولاً أو بالاسم
                 let masterProd = null;
                 if (it.productId) {
@@ -10897,7 +11039,7 @@ function startHeaderClock() {
                 };
                 cur.name = resolvedName; // استخدام الاسم الحالي المعتمد دائماً
                 cur.count += (it.quantity || 0);
-                cur.revenue += (it.total || 0);
+                cur.revenue += netItemRevenues[itemIndex] || 0;
                 productsSalesMap.set(resolvedId, cur);
             });
         });
@@ -13778,28 +13920,31 @@ window.addEventListener('DOMContentLoaded', () => {
             // تجميع الأصناف المباعة بالفترة
             const productSalesSummary = {};
             periodInvoices.forEach(inv => {
-                (inv.items || []).forEach(it => {
+                const netItemRevenues = getInvoiceNetItemRevenues(inv);
+                (inv.items || []).forEach((it, itemIndex) => {
                     const pid = it.productId || it.name;
                     if (!productSalesSummary[pid]) {
                         const prod = (appData.products || []).find(p => p.id === it.productId);
-                        const costPrice = prod ? (prod.costPrice || 0) : (it.costPrice || 0);
                         productSalesSummary[pid] = {
                             name: it.name,
                             unit: it.unit || (prod ? prod.unit : ''),
                             qty: 0,
-                            costPrice: costPrice,
+                            costPrice: 0,
                             totalCost: 0,
                             totalRevenue: 0
                         };
                     }
                     const qty = it.quantity || 0;
                     productSalesSummary[pid].qty += qty;
-                    productSalesSummary[pid].totalRevenue += (it.price || 0) * qty;
-                    productSalesSummary[pid].totalCost += productSalesSummary[pid].costPrice * qty;
+                    productSalesSummary[pid].totalRevenue += netItemRevenues[itemIndex] || 0;
+                    productSalesSummary[pid].totalCost += getInvoiceItemCost(it);
                 });
             });
 
-            const summaryList = Object.values(productSalesSummary);
+            const summaryList = Object.values(productSalesSummary).map(item => ({
+                ...item,
+                costPrice: item.qty > 0 ? item.totalCost / item.qty : 0
+            }));
             totalVal = summaryList.reduce((s, it) => s + it.totalCost, 0);
             totalDisp.textContent = `${formatMoney(totalVal)} شيكل`;
 
@@ -13847,9 +13992,7 @@ window.addEventListener('DOMContentLoaded', () => {
             periodInvoices.forEach(inv => {
                 totSales += (inv.totalAmount || inv.totalCost || 0);
                 (inv.items || []).forEach(it => {
-                    const prod = (appData.products || []).find(p => p.id === it.productId);
-                    const costPrice = prod ? (prod.costPrice || 0) : (it.costPrice || 0);
-                    totCOGS += (it.quantity || 0) * costPrice;
+                    totCOGS += getInvoiceItemCost(it);
                 });
             });
 
@@ -13887,11 +14030,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     <tbody class="divide-y divide-slate-100">
                         ${periodInvoices.map(inv => {
                             const val = inv.totalAmount || inv.totalCost || 0;
-                            let cogs = 0;
-                            (inv.items || []).forEach(it => {
-                                const prod = (appData.products || []).find(p => p.id === it.productId);
-                                cogs += (it.quantity || 0) * (prod ? (prod.costPrice || 0) : (it.costPrice || 0));
-                            });
+                            const cogs = (inv.items || []).reduce((sum, it) => sum + getInvoiceItemCost(it), 0);
                             const profit = Math.round((val - cogs) * 100) / 100;
                             const marginPct = val > 0 ? Math.round((profit / val) * 100) : 0;
                             return `
@@ -13918,10 +14057,7 @@ window.addEventListener('DOMContentLoaded', () => {
             let totCOGS = 0;
             periodInvoices.forEach(inv => {
                 totSales += (inv.totalAmount || inv.totalCost || 0);
-                (inv.items || []).forEach(it => {
-                    const prod = (appData.products || []).find(p => p.id === it.productId);
-                    totCOGS += (it.quantity || 0) * (prod ? (prod.costPrice || 0) : (it.costPrice || 0));
-                });
+                totCOGS += (inv.items || []).reduce((sum, it) => sum + getInvoiceItemCost(it), 0);
             });
             const gross = Math.round((totSales - totCOGS) * 100) / 100;
             const expTotal = periodExpenses.reduce((s, ex) => s + (ex.amount || 0), 0);
